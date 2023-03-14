@@ -4,9 +4,8 @@ const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 //const encrypt = require("mongoose-encryption");
-const md5 = require("md5");
-
-console.log(md5("hello"));
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 mongoose.connect("mongodb://127.0.0.1:27017/userDB", {useNewUrlParser: true});
 
@@ -47,32 +46,39 @@ app.get("/:direction", (req, res)=> {
 });
 
 app.post("/register", (req,res)=>{
-    const username = req.body.username;
-    const password = md5(req.body.password);
 
-    const newUser = new User(
-        {
-            email: username,
-            password: password
-        }
-    );
-    newUser.save().then(()=>{
-        res.render("secrets");
-    }).catch( (err) => {
-        console.log(err);
+    bcrypt.hash(req.body.password, saltRounds, (err,hash)=>{
+        const username = req.body.username;
+        const password = hash;
+    
+        const newUser = new User(
+            {
+                email: username,
+                password: password
+            }
+        );
+        newUser.save().then(()=>{
+            res.render("secrets");
+        }).catch( (err) => {
+            console.log(err);
+        });
     });
 });
 
 app.post("/login", (req,res)=>{
     const username = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
     User.findOne({email : username}).then(function(user, err) {
         if (err) return console.error(err);
         if(user){
-            if(user.password === password){
-                res.render("secrets");
-            }
+
+            bcrypt.compare(password, user.password, (err,result)=>{
+                if(result){
+                    res.render("secrets");
+                }
+            });
+
         }
       });
 });
